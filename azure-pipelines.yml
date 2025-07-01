@@ -21,10 +21,14 @@ strategy:
     #   python.version: '3.11'
 
 steps:
-- task: UsePythonVersion@0
-  inputs:
-    versionSpec: '$(python.version)'
-  displayName: 'Use Python $(python.version)'
+# - task: UsePythonVersion@0
+#   inputs:
+#     versionSpec: '$(python.version)'
+#   displayName: 'Use Python $(python.version)'
+
+- script: |
+    curl -v https://google.com
+  displayName: 'test with google'
 
 - script: |
     python -m pip install --upgrade pip
