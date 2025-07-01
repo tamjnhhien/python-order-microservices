@@ -7,7 +7,7 @@ trigger:
 - main
 
 pool:
-  vmImage: Agent01
+  name: Agent01
 
 strategy:
   matrix:
