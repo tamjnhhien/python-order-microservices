@@ -27,7 +27,7 @@ steps:
 #   displayName: 'Use Python $(python.version)'
 
 - script: |
-    curl -v https://google.com
+    curl -v google.com
   displayName: 'test with google '
 
 - script: |
