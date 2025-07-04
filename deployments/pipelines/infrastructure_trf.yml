@@ -1,0 +1,162 @@
+trigger:
+  branches:
+    include:
+      - main
+
+pool:
+  name: 'self-hosted-linux-agents' # this is the name of the pool where the pipeline will run
+  demands:
+    - agent.name -equals first-agent # this is the name of the agent where the pipeline will run
+
+variables:
+- template: variables.yml
+
+stages:
+- stage: CheckoutAndAuthenticate
+  displayName: 'Checkout and Authenticate'
+  jobs:
+  - job: Authenticate
+    displayName: 'Setup and Authenticate'
+    steps:
+    - checkout: self
+      displayName: 'Checkout my code'
+    
+    - script: |
+        terraform version
+        az --version
+      displayName: 'Validate Terraform and Azure CLI installation'
+
+    - script: |
+        echo "Setting up Azure CLI..."
+        az login --service-principal -u $ARM_CLIENT_ID -p $ARM_CLIENT_SECRET --tenant $ARM_TENANT_ID
+        az account set --subscription $ARM_SUBSCRIPTION_ID
+        az account show
+      displayName: 'Azure CLI Setup - Authenticate to Azure'
+      # This is recommended way to reference secret variables in Azure DevOps Pipelines
+      # You can't map secret variables globally by any means, so you need to pass them to each step that needs them
+      env:
+        ARM_CLIENT_ID: $(CLIENT_ID)
+        ARM_CLIENT_SECRET: $(CLIENT_SECRET)
+        ARM_TENANT_ID: $(TENANT_ID)
+        ARM_SUBSCRIPTION_ID: $(SUBSCRIPTION_ID)
+
+- stage: TerraformPlan
+  displayName: 'Terraform Plan'
+  dependsOn: CheckoutAndAuthenticate
+  jobs:
+  - job: TerraformPlan
+    displayName: 'Terraform Plan'
+    steps:
+    - checkout: self
+      displayName: 'Checkout Repository'
+      
+    - script: |
+        cd deployments/terraform
+        echo "Initializing Terraform..."
+        terraform init
+      displayName: 'Terraform Init'
+      # This is recommended way to reference secret variables in Azure DevOps Pipelines
+      # You can't map secret variables globally by any means, so you need to pass them to each step that needs them
+      env:
+        ARM_CLIENT_ID: $(CLIENT_ID)
+        ARM_CLIENT_SECRET: $(CLIENT_SECRET)
+        ARM_TENANT_ID: $(TENANT_ID)
+        ARM_SUBSCRIPTION_ID: $(SUBSCRIPTION_ID)
+
+    - script: |
+        cd deployments/terraform
+        echo "Validating Terraform configuration..."
+        terraform validate
+      displayName: 'Terraform Validate'
+
+    - script: |
+        cd deployments/terraform
+        echo "Formatting Terraform files..."
+        terraform fmt -check
+      displayName: 'Terraform Format Check'
+      continueOnError: true
+
+    - script: |
+        cd deployments/terraform
+        echo "Creating Terraform execution plan..."
+        terraform plan \
+          -var="resource_group_name=$TF_RG" \
+          -out=tfplan \
+          -detailed-exitcode
+      displayName: 'Terraform Plan'
+      # This is recommended way to reference secret variables in Azure DevOps Pipelines
+      # You can't map secret variables globally by any means, so you need to pass them to each step that needs them
+      env:
+        TF_RG: $(RG)
+        ARM_CLIENT_ID: $(CLIENT_ID)
+        ARM_CLIENT_SECRET: $(CLIENT_SECRET)
+        ARM_TENANT_ID: $(TENANT_ID)
+        ARM_SUBSCRIPTION_ID: $(SUBSCRIPTION_ID)
+
+    - task: PublishPipelineArtifact@1
+      inputs:
+        targetPath: 'deployments/terraform/tfplan'
+        artifact: 'terraform-plan'
+        publishLocation: 'pipeline'
+      displayName: 'Publish Terraform Plan'
+
+- stage: TerraformApply
+  displayName: 'Terraform Apply'
+  dependsOn: TerraformPlan
+  jobs:
+  - deployment: TerraformApply
+    displayName: 'Terraform Apply'
+    environment: 'production'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - checkout: self
+            displayName: 'Checkout my code'
+
+          - task: DownloadPipelineArtifact@2
+            inputs:
+              buildType: 'current'
+              artifactName: 'terraform-plan'
+              targetPath: 'deployments/terraform/'
+            displayName: 'Download Terraform Plan'
+
+          - script: |
+              cd deployments/terraform
+              echo "Re-initializing Terraform..."
+              terraform init
+            displayName: 'Terraform Re-Init'
+            env:
+              ARM_CLIENT_ID: $(CLIENT_ID)
+              ARM_CLIENT_SECRET: $(CLIENT_SECRET)
+              ARM_TENANT_ID: $(TENANT_ID)
+              ARM_SUBSCRIPTION_ID: $(SUBSCRIPTION_ID)
+
+          - script: |
+              cd deployments/terraform
+              echo "Applying Terraform plan..."
+              terraform apply tfplan
+            displayName: 'Terraform Apply'
+            env:
+              ARM_CLIENT_ID: $(CLIENT_ID)
+              ARM_CLIENT_SECRET: $(CLIENT_SECRET)
+              ARM_TENANT_ID: $(TENANT_ID)
+              ARM_SUBSCRIPTION_ID: $(SUBSCRIPTION_ID)
+
+          - script: |
+              cd deployments/terraform
+              echo "✅ Infrastructure deployed successfully!"
+              
+              echo "Terraform Outputs:"
+              terraform output
+              
+              echo "Verifying Azure resources..."
+              az resource list \
+                --resource-group $TF_RG \
+                --query "[].{Name:name, Type:type, Location:location}" \
+                --output table
+            displayName: 'Show Deployment Results'
+            # This is recommended way to reference secret variables in Azure DevOps Pipelines
+            # You can't map secret variables globally by any means, so you need to pass them to each step that needs them
+            env:
+              TF_RG: $(RG)
