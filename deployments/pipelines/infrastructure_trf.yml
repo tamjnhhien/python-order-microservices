@@ -4,9 +4,9 @@ trigger:
       - main
 
 pool:
-  name: 'self-hosted-linux-agents' # this is the name of the pool where the pipeline will run
+  name: 'Agent01' # this is the name of the pool where the pipeline will run
   demands:
-    - agent.name -equals first-agent # this is the name of the agent where the pipeline will run
+    - agent.name -equals agent_mac # this is the name of the agent where the pipeline will run
 
 variables:
 - template: variables.yml
