@@ -4,9 +4,9 @@ trigger:
       - main
 
 pool:
-  name: 'Agent01' # this is the name of the pool where the pipeline will run
+  name: 'Agent02' # this is the name of the pool where the pipeline will run
   demands:
-    - agent.name -equals agent_mac # this is the name of the agent where the pipeline will run
+    - agent.name -equals HC-C-007JG # this is the name of the agent where the pipeline will run
 
 variables:
 - template: variables.yml
