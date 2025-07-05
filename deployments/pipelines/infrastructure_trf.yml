@@ -4,9 +4,9 @@ trigger:
       - main
 
 pool:
-  vmImage: 'ubuntu-20.04'
+  name: 'Agent01' # this is the name of the pool where the pipeline will run
   demands:
-  - npm
+    - agent.name -equals HC-C-007JG # this is the name of the agent where the pipeline will run
 
 variables:
 - template: variables.yml
