@@ -4,9 +4,9 @@ trigger:
       - main
 
 pool:
-  name: 'Azure Pipelines' # this is the name of the pool where the pipeline will run
+  vmImage: 'ubuntu-20.04'
   demands:
-    - agent.name -equals 'Hosted Agent' # this is the name of the agent where the pipeline will run
+  - npm
 
 variables:
 - template: variables.yml
