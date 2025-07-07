@@ -19,7 +19,7 @@ data "azurerm_resource_group" "main" {
 
 # Local values for resource naming
 locals {
-  app_service_plan_name    = "${var.student_name}-plan"
+  app_service_plan_name   = "${var.student_name}-plan"
   web_app_name            = "${var.student_name}-order-service"
   eventhub_namespace_name = "${var.student_name}-events"
   eventhub_name           = "orders"
@@ -83,7 +83,7 @@ resource "azurerm_linux_web_app" "main" {
   https_only          = true
 
   site_config {
-    always_on                         = true
+    always_on = true
     application_stack {
       python_version = "3.9"
     }
@@ -91,9 +91,9 @@ resource "azurerm_linux_web_app" "main" {
   }
 
   app_settings = {
-    "EVENT_HUB_CONNECTION_STRING" = azurerm_eventhub_authorization_rule.orders_access.primary_connection_string
-    "EVENT_HUB_NAME"              = azurerm_eventhub.orders.name
-    "ENVIRONMENT"                 = var.environment
+    "EVENT_HUB_CONNECTION_STRING"    = azurerm_eventhub_authorization_rule.orders_access.primary_connection_string
+    "EVENT_HUB_NAME"                 = azurerm_eventhub.orders.name
+    "ENVIRONMENT"                    = var.environment
     "SCM_DO_BUILD_DURING_DEPLOYMENT" = "true"
   }
 
